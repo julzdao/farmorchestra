@@ -6,8 +6,22 @@ The first prototype targets a simple deep-water culture (DWC) lettuce setup.
 
 ## Current Status 
 
-Early dev. 
-For now, this monorepo contains the API, dashboard and collector applications. 
+Early dev.  
+
+## Architecture [Work in Progress]
+
+FarmOrchestra uses a monorepo containing the following applications: 
+1. React Dashboard 
+2. Java Spring Boot API 
+3. Python Collector 
+
+The collector runs on the Raspberry Pi and collects data from the sensors. These readings are persisted in a PostgreSQL database. Then the dashboard retrieves the data through the API. 
+
+The next diagram shows the proposed MVP architecture. Some of the components listed are only planned, but not yet implemented.
+
+![Proposed FarmOrchestra architecture](docs/architecture/architecture.png)
+
+[Download the architecture PDF](docs/architecture/architecture.pdf)
 
 ## Prerequisites 
 
