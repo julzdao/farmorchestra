@@ -1,0 +1,37 @@
+@use "../tokens" as t;
+
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dashboard {
+  max-width: 1180px;
+  margin: auto;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  &__intro {
+    padding: 3rem 0 2rem;
+    p {
+      color: t.$muted;
+      line-height: 1.5;
+    }
+  }
+  &__note {
+    color: t.$muted;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin-top: 1.5rem;
+  }
+}
+
+.connection {
+  font: 0.85rem t.$mono;
+  margin: 1rem 0;
+}
