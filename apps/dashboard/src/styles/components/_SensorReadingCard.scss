@@ -1,0 +1,68 @@
+@use "../tokens" as t;
+
+$-dot-size: 9px;
+
+.sensor-card {
+  background: t.$card;
+  padding: 1.5rem;
+  min-width: 0; // allow shrinking inside the grid instead of overflowing
+
+  &__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    h2 {
+      font-size: 0.95rem;
+      font-weight: 500;
+      margin: 0;
+    }
+  }
+
+  &__value {
+    font-family: t.$mono;
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    letter-spacing: -0.06em;
+    font-variant-numeric: tabular-nums;
+    margin: 2rem 0;
+    span {
+      font-size: 1.15rem;
+      letter-spacing: 0;
+      margin-left: 0.6rem;
+      color: t.$muted;
+    }
+  }
+
+  &__detail {
+    font-size: 0.75rem;
+    color: t.$muted;
+    margin: 0;
+  }
+}
+
+
+.sensor-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font: 0.7rem t.$mono;
+  span {
+    width: $-dot-size;
+    height: $-dot-size;
+    border-radius: 50%;
+    background: t.$inactive;
+  }
+  &--active span {
+    background: t.$active;
+  }
+}
+
+@media (max-width: 800px) {
+  .sensor-grid {
+    grid-template-columns: 1fr;
+  }
+  .sensor-card__value {
+    font-size: 3.5rem;
+  }
+}

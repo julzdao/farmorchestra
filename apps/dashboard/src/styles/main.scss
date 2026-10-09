@@ -1,0 +1,55 @@
+@use "tokens" as t;
+@use "base";
+@use "buttons";
+@use "headings";
+@use "links";
+@use "components/SensorReadingCard";
+@use "pages/DashboardPage";
+
+.brand {
+  font-family: t.$mono;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.home {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  &__content {
+    background: white;
+    width: min(100%, 800px);
+    padding: clamp(2rem, 7vw, 5rem);
+    min-height: 80svh;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+}
+
+.intro {
+  color: t.$muted;
+  line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 2rem;
+}
+
+.notice {
+  min-height: 2.5rem;
+  color: t.$muted;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.eyebrow {
+  font-family: t.$mono;
+  font-size: 0.8rem;
+  color: t.$muted;
+}
+
