@@ -27,7 +27,7 @@ export function SensorReadingCard({
 }: Props) {
     return (
         <article className="sensor-card" aria-label={title}>
-            <div className="snesor-card__heading">
+            <div className="sensor-card__heading">
                 <h2>{title}</h2>
                 <span 
                     className={`sensor-status ${active ? "sensor-status--active" : ""}`}

@@ -46,7 +46,7 @@ export function parseReading(
     }
 
     if (
-      !isValidSensorIdType(sensorId) ||
+      !isValidSensorIdType(data.sensorId) ||
       !isValidReadingValue(data.value) ||
       !isValidReadingTimestamp(data.timestamp)
     ) {

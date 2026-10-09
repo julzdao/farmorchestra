@@ -41,6 +41,12 @@ test("parseReading rejects an unknown sensor ID", () => {
   assert.equal(parseReading(readingWithUnknownSensorId), null);
 });
 
+test("parseReading rejects a sensor ID that is neither a string nor a number", () => {
+  const readingWithArraySensorId = JSON.stringify({ ...validMessage, sensorId: ["3"] });
+
+  assert.equal(parseReading(readingWithArraySensorId), null);
+});
+
 test("parseReading rejects malformed JSON", () => {
   assert.equal(parseReading("invalid"), null);
 });
