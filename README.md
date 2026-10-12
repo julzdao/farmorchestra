@@ -1,12 +1,26 @@
-FarmOrchestra is an Open Source Hydroponics Monitoring System for growing your own food in a reliable way. 
+# FarmOrchestra
 
-It connects sensor readings from your indoor/outdoor farm setup (such as Hydroponics), with a dashboard to help you monitor under optimal growing conditions. 
+**Grow your own fresh food with hydroponics: easy, affordable and fun.**
 
-The first prototype targets a simple deep-water culture (DWC) lettuce setup.
+FarmOrchestra is an open-source hydroponics monitoring system. It connects the
+sensors in your indoor or outdoor setup to a dashboard that keeps you informed,
+so your plants stay in optimal growing conditions.
 
-## Current Status 
+## Vision
 
-Early dev.  
+Anyone can grow their own fresh food at home, with confidence, no prior
+expertise needed.
+
+## Mission
+
+Make hydroponics easy, affordable and fun with an open-source platform that
+watches over your system, explains what's happening, and teaches you along
+the way.
+
+## Current Status
+
+Early development. The first prototype targets a simple deep-water culture
+(DWC) lettuce setup.
 
 ## Architecture [Work in Progress]
 
