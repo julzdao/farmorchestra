@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FarmOrchestra Command Deck — Prototype v0.2</title>
+<!--
+  FarmOrchestra · Command Deck · design reference (v0.2)
+  ------------------------------------------------------
+  One static file, six screens, switched by URL hash:
+    #landing  #login  #overview  #monitoring  #alerts  #crew
+  All data is SAMPLE data. Nothing talks to a backend.
+  Design tokens live in :root. Shared components are plain CSS classes
+  (.panel, .ticks, .btn, .label, .chip ...) so they map 1:1 to React components.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@700&family=Noto+Serif+JP:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ===== Tokens ===================================================== */
+:root{
+  /* surfaces */
+  --void:#0A0C0C;          /* page ground */
+  --hull:#0C0F0E;          /* panels */
+  --hull-2:#0F1412;        /* active nav, pressed */
+  --seam:#1C2622;          /* panel borders */
+  --seam-soft:#141B18;     /* row dividers */
+  --topo:#262B29;          /* contour lines */
+  /* text */
+  --bone:#E8E4D8;          /* primary text */
+  --lichen:#A9B1A9;        /* secondary text */
+  --muted:#8E978F;         /* labels */
+  --dim:#59645E;           /* decoration only */
+  /* accents */
+  --chlorophyll:#7BEA9B;   /* life, OK, primary action */
+  --chlorophyll-ink:#06100A;
+  --chlorophyll-deep:#23503A; /* target ranges */
+  --chlorophyll-line:#2C4A38;
+  --dusk:#E2794F;          /* attention, Sol, warm accent (bridge to The Farmian) */
+  --dusk-line:#3A2A22;
+  --dusk-bg:#120D0A;
+  /* type */
+  --serif:'Bodoni Moda', 'Didot', serif;
+  --mono:'IBM Plex Mono', ui-monospace, monospace;
+  --wordmark:'Space Mono', var(--mono);
+  --kanji:'Noto Serif JP', serif;
+  /* layout */
+  --gutter:clamp(20px, 3.5vw, 48px);
+  --sidebar:236px;
+}
+
+/* ===== Base ======================================================= */
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--void);color:var(--bone);font-family:var(--mono);font-size:14px;line-height:1.5}
+a{color:var(--chlorophyll)}
+a:hover{color:#B8F8CB}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--chlorophyll);outline-offset:2px}
+.page[hidden]{display:none!important}
+.kanji{font-family:var(--kanji);letter-spacing:0}
+.serif{font-family:var(--serif);font-weight:400}
+.italic{font-style:italic}
+.green{color:var(--chlorophyll)}
+.dusk{color:var(--dusk)}
+.muted{color:var(--muted)}
+.lichen{color:var(--lichen)}
+.label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.label-wide{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--lichen)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ===== Components ================================================= */
+/* Panel with green corner ticks (top-left + bottom-right) */
+.panel{border:1px solid var(--seam);background:var(--hull)}
+.ticks{position:relative}
+.ticks::before,.ticks::after{content:"";position:absolute;width:12px;height:12px;border:0 solid var(--chlorophyll);pointer-events:none}
+.ticks::before{top:-1px;left:-1px;border-top-width:1px;border-left-width:1px}
+.ticks::after{bottom:-1px;right:-1px;border-bottom-width:1px;border-right-width:1px}
+.ticks.warn::before,.ticks.warn::after{border-color:var(--dusk)}
+
+/* Bracket buttons: [ LABEL ] */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border:1px solid var(--chlorophyll-line);background:transparent;color:var(--chlorophyll);text-decoration:none;font-size:12px;letter-spacing:4px;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.btn::before{content:"[";margin-right:10px;opacity:.6}
+.btn::after{content:"]";margin-left:10px;opacity:.6}
+.btn:hover{background:var(--hull-2);color:var(--chlorophyll)}
+.btn-primary{background:var(--chlorophyll);border-color:var(--chlorophyll);color:var(--chlorophyll-ink);font-weight:600}
+.btn-primary:hover{background:#9CF1B5;color:var(--chlorophyll-ink)}
+.btn-ghost{border-color:#2A3430;color:var(--bone)}
+.btn-warn{border-color:var(--dusk-line);color:var(--dusk)}
+.btn-sm{min-height:36px;padding:0 12px;font-size:10px;letter-spacing:2px}
+.btn-plain::before,.btn-plain::after{content:none}
+
+/* Chips / filters */
+.chip{min-height:36px;padding:0 12px;border:1px solid #2A3430;background:transparent;color:var(--lichen);font-size:11px;letter-spacing:1px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--chlorophyll);background:var(--hull-2);color:var(--chlorophyll)}
+
+/* Status */
+.status-live{color:var(--chlorophyll)}
+.status-warn{color:var(--dusk)}
+.status-manual{color:#C9C4B6}
+.pulse{animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+
+/* Sol bar (segmented) */
+.solbar{display:flex;gap:2px}
+.solbar span{flex:1;height:10px;background:#18211E}
+.solbar span.on{background:var(--chlorophyll)}
+.solbar span.today{background:var(--dusk)}
+.solbar.lg span{height:14px}
+
+/* Range bar with target zone + marker */
+.range{position:relative;height:6px;background:#18211E}
+.range .zone{position:absolute;top:0;bottom:0;background:var(--chlorophyll-deep)}
+.range .mark{position:absolute;top:-4px;width:2px;height:14px;background:var(--bone)}
+
+/* Inputs */
+.field{display:flex;flex-direction:column;gap:8px}
+.input{height:48px;background:var(--void);border:1px solid #2A3430;color:var(--bone);padding:0 14px;font-size:14px}
+.input::placeholder{color:var(--dim)}
+
+/* Logo mark */
+.mark-box{width:40px;height:40px;border:1.5px solid var(--chlorophyll);display:flex;align-items:center;justify-content:center;flex:none}
+.wordmark{font-family:var(--wordmark);font-weight:700;font-size:20px;letter-spacing:.2px;color:var(--bone)}
+
+/* Topographic background (SVG injected by JS) */
+.topo{position:absolute;inset:0;overflow:hidden;pointer-events:none;
+  background-image:radial-gradient(circle, #2A302D 1px, transparent 1.4px);background-size:80px 80px;background-position:26px 26px}
+.topo svg{width:100%;height:100%;display:block}
+
+/* ===== Landing ==================================================== */
+.landing{min-height:100vh;display:flex;flex-direction:column}
+.site-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding:22px clamp(20px,4vw,60px);border-bottom:1px solid #18211E}
+.brand{display:flex;align-items:center;gap:16px;text-decoration:none}
+.brand-sub{font-size:10px;letter-spacing:5px;color:var(--lichen);display:flex;gap:14px}
+.brand-sub .ja{color:var(--dim);letter-spacing:2px}
+.site-nav{display:flex;flex-wrap:wrap;align-items:center;gap:36px}
+.site-nav a.plain{color:var(--lichen);text-decoration:none;font-size:12px;letter-spacing:5px}
+.hero-wrap{position:relative;padding:52px clamp(20px,3vw,44px) 104px;flex:1}
+.hero{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:40px;padding:44px clamp(24px,3vw,42px) 52px;background:rgba(12,15,14,.94)}
+.hero-copy{flex:999 1 540px;min-width:0;display:flex;flex-direction:column;gap:26px}
+.hero h1{margin:0;font-family:var(--serif);font-weight:400;font-size:clamp(64px,9vw,128px);line-height:.86;letter-spacing:-1px}
+.hero p{margin:0;max-width:520px;font-size:16px;line-height:1.55;color:var(--lichen)}
+.hero-art{flex:1 1 300px;display:flex;justify-content:center}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;padding:64px clamp(20px,4vw,60px);border-top:1px solid #18211E}
+.feature{display:flex;gap:30px;align-items:flex-start}
+.feature .kbox{width:56px;height:52px;border:1.5px solid var(--chlorophyll);display:flex;align-items:center;justify-content:center;font-family:var(--kanji);font-size:30px;color:var(--chlorophyll);flex:none}
+.feature p{margin:8px 0 0;font-size:12px;line-height:1.7;color:var(--lichen)}
+.site-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;padding:20px clamp(20px,4vw,52px);border-top:1px solid #18211E;font-size:10px;letter-spacing:5px;color:var(--muted)}
+
+/* ===== Login ====================================================== */
+.login{min-height:100vh;display:flex;flex-wrap:wrap}
+.login-aside{flex:1 1 420px;max-width:480px;position:relative;overflow:hidden;background:var(--void);border-right:1px solid #18211E;padding:36px 56px 56px;display:flex;flex-direction:column;justify-content:space-between;gap:48px}
+.login-aside .ghost{position:absolute;left:30px;bottom:-60px;font-family:var(--kanji);font-size:420px;line-height:1;color:#101714;pointer-events:none}
+.login-main{flex:999 1 520px;min-width:0;position:relative;display:flex;align-items:center;justify-content:center;padding:48px 24px}
+.login-card{position:relative;width:100%;max-width:460px;padding:40px;display:flex;flex-direction:column;gap:22px}
+.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid var(--seam)}
+.tabs button{min-height:48px;border:0;background:transparent;color:var(--lichen);font-size:12px;letter-spacing:3px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--chlorophyll);color:var(--chlorophyll-ink);font-weight:600}
+.trio{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--seam)}
+.trio div{padding:14px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.trio div+div{border-left:1px solid var(--seam)}
+
+/* ===== App shell (sidebar + content) ============================= */
+.app{min-height:100vh;display:flex;flex-wrap:wrap}
+.sidebar{flex:1 1 var(--sidebar);max-width:var(--sidebar);min-height:100vh;border-right:1px solid #18211E;background:#090B0B;padding:18px 16px 24px;display:flex;flex-direction:column;gap:30px}
+.sidebar .brand{gap:14px;padding:0 4px}
+.sidebar .mark-box{width:34px;height:34px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:14px;min-height:46px;padding:0 10px;text-decoration:none;color:var(--lichen);font-size:12px;letter-spacing:3px}
+.nav a:hover{background:#0F1513;color:var(--bone)}
+.nav a[aria-current="page"]{background:var(--hull-2);color:var(--chlorophyll)}
+.nav .kanji{font-size:15px}
+.nav .badge{margin-left:auto;background:var(--dusk);color:#120A06;font-size:10px;letter-spacing:0;padding:1px 6px}
+.mods a{letter-spacing:.5px;font-size:12px;min-height:42px;color:#C9C4B6}
+.sidebar-user{margin-top:auto;border-top:1px solid #18211E;padding:16px 8px 0;display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--bone)}
+.avatar{width:36px;height:36px;background:#13201A;color:var(--chlorophyll);display:flex;align-items:center;justify-content:center;font-size:12px}
+.content{flex:999 1 560px;min-width:0;padding:22px var(--gutter) 64px;display:flex;flex-direction:column;gap:34px;max-width:1180px}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #18211E;padding-bottom:18px;font-size:11px;letter-spacing:3px;color:var(--muted)}
+.topbar b{color:var(--bone);font-weight:500}
+.page-title{margin:0;font-family:var(--serif);font-weight:400;font-size:clamp(44px,5vw,64px);line-height:1}
+.section-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
+.section-head h2{margin:0;font-size:12px;font-weight:500;letter-spacing:4px;color:var(--lichen)}
+
+/* tables */
+.table-box{overflow-x:auto;border:1px solid var(--seam)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font-weight:500;font-size:10px;letter-spacing:2px;color:var(--muted);padding:12px 14px;border-bottom:1px solid var(--seam)}
+td{padding:13px 14px;border-bottom:1px solid var(--seam-soft)}
+tr:last-child td{border-bottom:0}
+
+/* Overview cards */
+.mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.mod{display:flex;flex-direction:column;text-decoration:none;color:var(--bone)}
+.mod:hover{border-color:#2A3A33;color:var(--bone)}
+.mod-head{display:flex;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #18211E;font-size:10px;letter-spacing:2px}
+.mod svg{width:100%;height:150px;background:#080A0A;display:block}
+.mod-body{padding:16px;display:flex;flex-direction:column;gap:14px}
+.mod h3{margin:0;font-family:var(--serif);font-weight:400;font-size:30px}
+.mod.warn{border-color:var(--dusk-line)}
+.alert-note{margin:0;font-size:12px;line-height:1.5;color:var(--dusk);border:1px solid var(--dusk-line);background:var(--dusk-bg);padding:10px}
+
+/* Monitoring */
+.mon-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:24px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.tile{padding:20px;display:flex;flex-direction:column;gap:12px;min-height:240px}
+.tile .value{font-family:var(--serif);font-size:56px;line-height:1}
+.tile .unit{font-size:20px;color:var(--muted)}
+.tile .foot{display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;color:var(--muted);margin-top:auto}
+.mon-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) minmax(280px,1fr);gap:20px;align-items:start}
+.mon-grid .log-panel{grid-column:3;grid-row:1 / span 2}
+@media (max-width:1100px){.mon-grid{grid-template-columns:1fr}.mon-grid .log-panel{grid-column:auto;grid-row:auto}}
+.log-list{list-style:none;margin:0;padding:0}
+.log-list li{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--seam-soft)}
+.log-when{display:flex;flex-direction:column;gap:2px;font-size:10px;letter-spacing:1px}
+
+/* Alerts */
+.alert-open{padding:22px;display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;border-color:var(--dusk-line);background:var(--dusk-bg)}
+@media (max-width:760px){.alert-open{grid-template-columns:1fr}}
+
+/* Crew */
+.seg{display:flex;border:1px solid #2A3430}
+.seg button{flex:1;min-height:42px;border:0;background:transparent;color:var(--lichen);font-size:12px;letter-spacing:1px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--chlorophyll);color:var(--chlorophyll-ink)}
+.switch{flex:none;width:52px;height:28px;border:1px solid #2A3430;background:transparent;padding:3px;display:flex;justify-content:flex-start;cursor:pointer}
+.switch span{width:20px;height:20px;background:var(--dim)}
+.switch[aria-checked="true"]{border-color:var(--chlorophyll);background:var(--hull-2);justify-content:flex-end}
+.switch[aria-checked="true"] span{background:var(--chlorophyll)}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+
+/* Prototype-only page switcher (not part of the product) */
+.proto-nav{position:fixed;right:16px;bottom:16px;z-index:50;display:flex;gap:2px;background:#000;border:1px solid #2A3430;padding:4px;font-size:10px;letter-spacing:1px}
+.proto-nav a{color:var(--muted);text-decoration:none;padding:6px 8px}
+.proto-nav a.on{color:var(--chlorophyll-ink);background:var(--chlorophyll)}
+</style>
+</head>
+<body>
+
+<!-- Logo mark: a sprout whose branches end in nodes, with a music-note head at the base. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="fo-mark" viewBox="0 0 24 24">
+    <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 4 V17"></path>
+      <path d="M12 12 L7.5 8.5 V7"></path>
+      <path d="M12 10 L16.5 7 V5.5"></path>
+    </g>
+    <circle cx="12" cy="3.4" r="1.5" fill="currentColor"></circle>
+    <circle cx="7.5" cy="6.2" r="1.3" fill="currentColor"></circle>
+    <circle cx="16.5" cy="4.7" r="1.3" fill="currentColor"></circle>
+    <ellipse cx="9.8" cy="18.2" rx="2.6" ry="2" transform="rotate(-20 9.8 18.2)" fill="currentColor"></ellipse>
+  </symbol>
+</svg>
+
+<!-- =================================================================
+     01 · LANDING  (#landing)
+     ================================================================= -->
+<div class="page landing" id="landing" hidden>
+  <header class="site-header">
+    <a class="brand" href="#landing" aria-label="FarmOrchestra home">
+      <span class="mark-box"><svg width="24" height="24" class="green" aria-hidden="true"><use href="#fo-mark"></use></svg></span>
+      <span style="display:flex;flex-direction:column;gap:4px">
+        <span class="wordmark">FarmOrchestra</span>
+        <span class="brand-sub"><span>COMMAND DECK</span><span class="ja">コマンドデッキ</span></span>
+      </span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a class="plain" href="https://github.com/julzdao/farmorchestra">SOURCE</a>
+      <a class="plain" href="https://github.com/julzdao/farmorchestra#readme">DOCS</a>
+      <a class="btn" href="#login">LOG IN</a>
+    </nav>
+  </header>
+
+  <section class="hero-wrap">
+    <div class="topo" data-topo="1"></div>
+    <div class="hero panel ticks">
+      <div class="hero-copy">
+        <p class="label-wide" style="margin:0">OPEN-SOURCE HYDROPONICS MONITORING &nbsp;-- &nbsp;<b class="green" style="font-weight:600">MISSION 01</b></p>
+        <h1>Every root,<br><span class="italic green">observed.</span></h1>
+        <p>Sensors on your Raspberry Pi. Signal on your screen.<br>A calm command deck for the systems that feed you.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:20px;margin-top:6px">
+          <a class="btn btn-primary" href="#login">ENTER COMMAND DECK</a>
+          <a class="btn" href="https://github.com/julzdao/farmorchestra">VIEW SOURCE</a>
+        </div>
+      </div>
+      <figure class="hero-art" style="margin:0">
+        <!-- Isometric DWC box, three seedlings, dashed low-water line -->
+        <svg viewBox="0 0 260 180" width="260" height="180" role="img" aria-label="Line drawing of a deep water culture box with three seedlings and a low water line">
+          <g fill="none" stroke="#3E4C46" stroke-width="1.4">
+            <polygon points="130,22 246,77 130,132 14,77"></polygon>
+            <polyline points="14,77 14,118 130,173 246,118 246,77"></polyline>
+            <line x1="130" y1="132" x2="130" y2="173"></line>
+          </g>
+          <polyline points="14,96 130,151 246,96" fill="none" stroke="#E2794F" stroke-width="1.4" stroke-dasharray="5 4"></polyline>
+          <g fill="none" stroke="#7BEA9B" stroke-width="1.6" stroke-linecap="round">
+            <ellipse cx="72" cy="72" rx="15" ry="6.5"></ellipse><ellipse cx="130" cy="72" rx="15" ry="6.5"></ellipse><ellipse cx="188" cy="72" rx="15" ry="6.5"></ellipse>
+            <path d="M72 70 V40 M72 52 C64 50 60 44 62 36 C70 38 72 44 72 52 M72 48 C80 46 84 40 82 32 C74 34 72 40 72 48"></path>
+            <path d="M130 70 V38 M130 50 C122 48 118 42 120 34 C128 36 130 42 130 50 M130 46 C138 44 142 38 140 30 C132 32 130 38 130 46"></path>
+            <path d="M188 70 V40 M188 52 C180 50 176 44 178 36 C186 38 188 44 188 52 M188 48 C196 46 200 40 198 32 C190 34 188 40 188 48"></path>
+          </g>
+          <text x="164" y="168" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="2" fill="#E2794F">LEVEL LOW</text>
+        </svg>
+      </figure>
+    </div>
+  </section>
+
+  <section class="features" aria-label="How it works">
+    <div class="feature"><span class="kbox" aria-hidden="true">勘</span><div><span class="label-wide">01 - SENSE</span><p>A Python collector on the Pi reads water<br>temperature and level every minute.</p></div></div>
+    <div class="feature"><span class="kbox" aria-hidden="true">渡</span><div><span class="label-wide">02 - TRANSIT</span><p>Readings are buffered locally and sent<br>over HTTPS whenever the link holds.</p></div></div>
+    <div class="feature"><span class="kbox" aria-hidden="true">眎</span><div><span class="label-wide">03 - OBSERVE</span><p>Live readings, history, and a ship's log<br>of every intervention you make.</p></div></div>
+  </section>
+
+  <footer class="site-footer"><span>© 2026 FARMORCHESTRA | AGPL-3.0</span><span>v0.1 &gt; LETTUCE LAB</span></footer>
+</div>
+
+<!-- =================================================================
+     02 · LOG IN / SIGN UP  (#login)
+     ================================================================= -->
+<div class="page login" id="login" hidden>
+  <aside class="login-aside">
+    <span class="ghost" aria-hidden="true">入</span>
+    <a class="brand" href="#landing" style="position:relative">
+      <span class="mark-box" style="width:34px;height:34px"><svg width="20" height="20" class="green" aria-hidden="true"><use href="#fo-mark"></use></svg></span>
+      <span class="wordmark" style="font-size:18px">FarmOrchestra</span>
+    </a>
+    <div style="position:relative;display:flex;flex-direction:column;gap:22px">
+      <span class="label" style="letter-spacing:3px">AIRLOCK · <span class="kanji">入口</span></span>
+      <h1 class="serif" style="margin:0;font-size:clamp(48px,5.4vw,76px);line-height:1">Welcome<br>back,<br><span class="italic green">botanist.</span></h1>
+      <p style="margin:0;font-size:14px;line-height:1.7;color:var(--lichen)">Your modules kept reporting while you were away. Sign in to read the signal.</p>
+    </div>
+    <div class="trio">
+      <div><span class="label">LINK</span><span class="green">● SECURE</span></div>
+      <div><span class="label">HOST</span><span>SELF / CLOUD</span></div>
+      <div><span class="label">LICENCE</span><span>AGPL-3.0</span></div>
+    </div>
+  </aside>
+
+  <main class="login-main">
+    <div class="topo" data-topo="2"></div>
+    <div class="login-card panel ticks">
+      <div class="tabs" role="tablist" aria-label="Account">
+        <button type="button" role="tab" aria-selected="true" data-tab="signin">SIGN IN</button>
+        <button type="button" role="tab" aria-selected="false" data-tab="signup">CREATE ACCOUNT</button>
+      </div>
+
+      <form data-form="signin" style="display:flex;flex-direction:column;gap:18px" onsubmit="event.preventDefault();location.hash='#overview'">
+        <div class="field"><label class="label" for="si-email">EMAIL</label><input class="input" id="si-email" type="email" autocomplete="email" placeholder="you@example.com"></div>
+        <div class="field">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><label class="label" for="si-pass">PASSWORD</label><a href="#login" style="font-size:11px;color:var(--muted)">Forgot?</a></div>
+          <input class="input" id="si-pass" type="password" autocomplete="current-password" placeholder="••••••••••">
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--lichen);min-height:32px"><input type="checkbox" checked style="width:18px;height:18px;accent-color:var(--chlorophyll)"> Keep this deck signed in for 30 days</label>
+        <button class="btn btn-primary" type="submit" style="width:100%;min-height:52px">AUTHENTICATE</button>
+      </form>
+
+      <form data-form="signup" hidden style="display:flex;flex-direction:column;gap:18px" onsubmit="event.preventDefault();location.hash='#overview'">
+        <div class="field"><label class="label" for="su-name">DISPLAY NAME</label><input class="input" id="su-name" type="text" autocomplete="nickname" placeholder="julz"></div>
+        <div class="field"><label class="label" for="su-email">EMAIL</label><input class="input" id="su-email" type="email" autocomplete="email" placeholder="you@example.com"></div>
+        <div class="field"><label class="label" for="su-pass">PASSWORD</label><input class="input" id="su-pass" type="password" autocomplete="new-password" placeholder="12+ characters"><span style="font-size:11px;color:var(--muted)">Use 12 or more characters. A passphrase works well.</span></div>
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.5;color:var(--lichen)"><input type="checkbox" style="width:18px;height:18px;margin:0;flex:none;accent-color:var(--chlorophyll)"> I agree to the terms and privacy notice. Only plant and environment data is stored.</label>
+        <button class="btn btn-primary" type="submit" style="width:100%;min-height:52px">COMMISSION ACCOUNT</button>
+      </form>
+
+      <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--muted);border-top:1px solid #18211E;padding-top:18px">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="#7BEA9B" stroke-width="1.2"><rect x="3" y="7" width="10" height="7"></rect><path d="M5 7V5a3 3 0 0 1 6 0v2"></path></svg>
+        <span>Self-hosting? Your readings never leave your own server.</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- =================================================================
+     03 · OVERVIEW  (#overview)
+     ================================================================= -->
+<div class="page app" id="overview" hidden>
+  <aside class="sidebar" data-active="overview"></aside>
+  <main class="content">
+    <div class="topbar"><span>DECK / <b>OVERVIEW</b> <span class="kanji">概要</span></span><span>EARTH 2026-10-17 · 08:14 CET</span></div>
+
+    <header style="display:flex;flex-direction:column;gap:10px">
+      <h1 class="page-title">Good morning, <span class="italic green">Julz.</span></h1>
+      <p style="margin:0;font-size:14px;color:var(--lichen)">2 modules reporting. 1 needs your attention before noon.</p>
+    </header>
+
+    <section aria-labelledby="mods-h" style="display:flex;flex-direction:column;gap:18px">
+      <div class="section-head">
+        <h2 id="mods-h">GROW MODULES · <span class="kanji">装置</span></h2>
+        <div role="group" aria-label="Filter modules" style="display:flex;gap:6px" data-filter>
+          <button class="chip" type="button" aria-pressed="true" data-f="all">ALL · 3</button>
+          <button class="chip" type="button" aria-pressed="false" data-f="live">LIVE · 2</button>
+          <button class="chip" type="button" aria-pressed="false" data-f="manual">MANUAL · 1</button>
+        </div>
+      </div>
+
+      <div class="mod-grid">
+        <a class="mod panel ticks" href="#monitoring" data-kind="live">
+          <div class="mod-head"><span class="muted">MOD-01 · DWC</span><span class="status-live"><span class="pulse">●</span> LIVE · 14s</span></div>
+          <svg viewBox="0 0 200 140" role="img" aria-label="Blueprint of a deep water culture box with three lettuces">
+            <g fill="none" stroke="#3E4C46" stroke-width="1"><polygon points="100,40 170,72 100,104 30,72"></polygon><polyline points="30,72 30,100 100,132 170,100 170,72"></polyline><line x1="100" y1="104" x2="100" y2="132"></line><path d="M170 92 C182 92 186 104 186 116 L186 124" stroke-dasharray="2 3"></path><rect x="178" y="124" width="16" height="9"></rect></g>
+            <g fill="none" stroke="#7BEA9B" stroke-width="1.1"><ellipse cx="65" cy="72" rx="9" ry="4.5"></ellipse><ellipse cx="100" cy="72" rx="9" ry="4.5"></ellipse><ellipse cx="135" cy="72" rx="9" ry="4.5"></ellipse>
+              <path d="M65 70 C56 60 52 54 58 50 C62 56 64 62 65 70 C66 60 70 52 76 52 C76 60 70 66 65 70 M65 70 C64 60 60 50 66 44 C70 52 68 62 65 70"></path>
+              <path d="M100 70 C91 60 87 54 93 50 C97 56 99 62 100 70 C101 60 105 52 111 52 C111 60 105 66 100 70 M100 70 C99 60 95 50 101 44 C105 52 103 62 100 70"></path>
+              <path d="M135 70 C126 60 122 54 128 50 C132 56 134 62 135 70 C136 60 140 52 146 52 C146 60 140 66 135 70 M135 70 C134 60 130 50 136 44 C140 52 138 62 135 70"></path></g>
+            <g font-family="IBM Plex Mono, monospace" font-size="7" fill="#59645E" letter-spacing="1"><text x="72" y="16">ESB-4322 · 20.8 L</text><text x="72" y="132">SCALE 1:8</text></g>
+          </svg>
+          <div class="mod-body">
+            <div><h3>Lettuce Lab · A</h3><span class="label" style="letter-spacing:1px;font-size:11px">WINTER KOPFSALAT × 3</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px"><span class="dusk">SOL 23</span><span class="muted">~22 TO HARVEST</span></div>
+              <div class="solbar" data-sol="45,23"></div>
+            </div>
+          </div>
+        </a>
+
+        <a class="mod panel ticks warn" href="#alerts" data-kind="live">
+          <div class="mod-head" style="border-color:#2A201B"><span class="muted">MOD-02 · DWC</span><span class="status-warn">▲ ATTENTION</span></div>
+          <svg viewBox="0 0 200 140" role="img" aria-label="Blueprint of a deep water culture box with three basil plants and a low water line">
+            <g fill="none" stroke="#3E4C46" stroke-width="1"><polygon points="100,40 170,72 100,104 30,72"></polygon><polyline points="30,72 30,100 100,132 170,100 170,72"></polyline><line x1="100" y1="104" x2="100" y2="132"></line></g>
+            <polyline points="30,96 100,128 170,96" fill="none" stroke="#E2794F" stroke-width="1" stroke-dasharray="3 3"></polyline>
+            <g fill="none" stroke="#7BEA9B" stroke-width="1.1"><ellipse cx="65" cy="72" rx="9" ry="4.5"></ellipse><ellipse cx="100" cy="72" rx="9" ry="4.5"></ellipse><ellipse cx="135" cy="72" rx="9" ry="4.5"></ellipse>
+              <path d="M65 70 L65 52 M65 60 C58 58 56 54 58 50 C62 52 64 56 65 60 M65 56 C72 54 74 50 72 46 C68 48 66 52 65 56"></path>
+              <path d="M100 70 L100 50 M100 60 C93 58 91 54 93 50 C97 52 99 56 100 60 M100 55 C107 53 109 49 107 45 C103 47 101 51 100 55"></path>
+              <path d="M135 70 L135 54 M135 62 C128 60 126 56 128 52 C132 54 134 58 135 62 M135 58 C142 56 144 52 142 48 C138 50 136 54 135 58"></path></g>
+            <g font-family="IBM Plex Mono, monospace" font-size="7" letter-spacing="1"><text x="72" y="16" fill="#59645E">ESB-4322 · 20.8 L</text><text x="128" y="132" fill="#E2794F">LEVEL LOW</text></g>
+          </svg>
+          <div class="mod-body">
+            <div><h3>Lettuce Lab · B</h3><span class="label" style="letter-spacing:1px;font-size:11px">BASIL × 3</span></div>
+            <p class="alert-note">Water level low since 06:40. Top up ~2 L and check the air line.</p>
+          </div>
+        </a>
+
+        <a class="mod panel ticks" href="#monitoring" data-kind="manual">
+          <div class="mod-head"><span class="muted">MOD-03 · JAR</span><span class="status-manual">○ MANUAL</span></div>
+          <svg viewBox="0 0 200 140" role="img" aria-label="Blueprint of a sprouting jar">
+            <g fill="none" stroke="#3E4C46" stroke-width="1"><ellipse cx="100" cy="36" rx="26" ry="9"></ellipse><path d="M74 36 L74 118 C74 128 126 128 126 118 L126 36"></path><path d="M78 28 C78 22 122 22 122 28" stroke-dasharray="2 2"></path></g>
+            <g fill="none" stroke="#7BEA9B" stroke-width="1"><path d="M84 116 C86 100 90 92 88 80 M94 118 C96 98 100 90 98 74 M104 118 C104 100 108 92 112 82 M114 116 C112 104 116 96 114 88"></path><circle cx="88" cy="79" r="2"></circle><circle cx="98" cy="73" r="2"></circle><circle cx="112" cy="81" r="2"></circle><circle cx="114" cy="87" r="2"></circle></g>
+            <g font-family="IBM Plex Mono, monospace" font-size="7" fill="#59645E" letter-spacing="1"><text x="72" y="16">MASON JAR · 1 L</text><text x="62" y="134">NO SENSORS · PHOTO SYNC</text></g>
+          </svg>
+          <div class="mod-body">
+            <div><h3>Sprout Jar · 01</h3><span class="label" style="letter-spacing:1px;font-size:11px">ALFALFA SPROUTS</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px"><span class="dusk">SOL 4</span><span class="muted">~2 TO HARVEST</span></div>
+              <div class="solbar" data-sol="6,4"></div>
+            </div>
+            <p style="margin:0;font-size:12px;color:var(--lichen)">Rinse twice a day. Last rinse logged 07:30.</p>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section aria-labelledby="log-h" style="display:flex;flex-direction:column;gap:14px">
+      <div class="section-head"><h2 id="log-h">SHIP'S LOG · <span class="kanji">航海日誌</span></h2><a href="#overview" style="font-size:11px;letter-spacing:2px">VIEW ALL →</a></div>
+      <div class="table-box">
+        <table style="min-width:640px">
+          <thead><tr><th>TIME</th><th>MODULE</th><th>ENTRY</th><th>SOURCE</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">08:02</td><td>MOD-01</td><td>Water temperature held 18.5–20.8 °C overnight</td><td class="muted">AUTO</td></tr>
+            <tr><td class="muted">07:30</td><td>MOD-03</td><td>Rinsed and drained</td><td class="muted">JULZ</td></tr>
+            <tr><td class="muted">06:40</td><td>MOD-02</td><td class="dusk">▲ Float switch reports water level low</td><td class="muted">AUTO</td></tr>
+            <tr><td class="muted">YDA 19:40</td><td>MOD-01</td><td>Topped up 1.5 L · pH 6.1 · EC 1.4 mS/cm</td><td class="muted">JULZ</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- =================================================================
+     04 · MONITORING · Lettuce Lab A  (#monitoring)
+     ================================================================= -->
+<div class="page app" id="monitoring" hidden>
+  <aside class="sidebar" data-active="mod-01"></aside>
+  <main class="content">
+    <div class="topbar">
+      <span><a href="#overview" style="color:var(--muted);text-decoration:none">DECK</a> / MODULES / <b>MOD-01</b></span>
+      <span style="display:flex;flex-wrap:wrap;align-items:center;gap:14px"><span><span class="green pulse">●</span> LIVE · LAST READING <span data-ago>14</span>s AGO</span><a class="btn btn-primary btn-sm" href="#monitoring">+ LOG ENTRY</a></span>
+    </div>
+
+    <header class="mon-head">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span class="label" style="letter-spacing:4px">MOD-01 · DEEP WATER CULTURE · <span class="kanji">観測</span></span>
+        <h1 class="page-title" style="font-size:clamp(48px,5.4vw,76px)">Lettuce Lab <span class="italic green">· A</span></h1>
+        <span style="font-size:12px;color:var(--lichen)">Winter Kopfsalat × 3 · Euro box 20.8 L · Rack shelf 2 · Lights 06:00–22:00</span>
+      </div>
+      <div style="flex:0 1 420px;min-width:280px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px"><span class="dusk">SOL 23 <span class="muted">/ ~45</span></span><span class="muted">EST. HARVEST ~8 NOV</span></div>
+        <div class="solbar lg" data-sol="45,23"></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;color:var(--muted)"><span>SOWN 16 SEP</span><span>TRANSPLANTED 24 SEP</span></div>
+      </div>
+    </header>
+
+    <section class="tiles" aria-label="Current readings">
+      <div class="tile panel ticks">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span class="label">WATER TEMP</span><span class="kanji green" style="font-size:24px">水温</span></div>
+        <div class="value">19.4<span class="unit"> °C</span></div>
+        <svg viewBox="0 0 200 36" preserveAspectRatio="none" aria-hidden="true" style="width:100%;height:36px"><polyline data-spark fill="none" stroke="#7BEA9B" stroke-width="1.2" vector-effect="non-scaling-stroke"></polyline></svg>
+        <div class="range" aria-label="Target 18 to 22 °C"><span class="zone" style="left:33.3%;width:33.3%"></span><span class="mark" style="left:45%"></span></div>
+        <div class="foot"><span>TARGET 18–22</span><span>DS18B20 · 60 s</span></div>
+      </div>
+      <div class="tile panel ticks">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span class="label">WATER LEVEL</span><span class="kanji green" style="font-size:24px">水位</span></div>
+        <div class="value green">OK</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;font-size:10px;letter-spacing:2px;text-align:center"><span style="border:1px solid #2A3430;color:var(--dim);padding:8px 0">LOW</span><span style="border:1px solid var(--chlorophyll);color:var(--chlorophyll);background:var(--hull-2);padding:8px 0">OK</span></div>
+        <div style="font-size:11px;color:var(--lichen)">Last change: topped up yesterday 19:40</div>
+        <div class="foot"><span>BINARY</span><span>FLOAT SWITCH</span></div>
+      </div>
+      <div class="tile panel ticks">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span class="label">pH</span><span class="kanji green" style="font-size:24px">酸</span></div>
+        <div class="value">6.1</div>
+        <div class="range" style="margin-top:auto" aria-label="Target pH 5.5 to 6.5"><span class="zone" style="left:33.3%;width:33.3%"></span><span class="mark" style="left:53.3%"></span></div>
+        <div class="foot" style="margin-top:0"><span>TARGET 5.5–6.5</span><span>MANUAL · 2 D AGO</span></div>
+      </div>
+      <div class="tile panel ticks">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span class="label">EC</span><span class="kanji green" style="font-size:24px">養</span></div>
+        <div class="value">1.4<span class="unit"> mS/cm</span></div>
+        <div class="range" style="margin-top:auto" aria-label="Target 1.2 to 1.8 mS/cm"><span class="zone" style="left:33.3%;width:33.3%"></span><span class="mark" style="left:44.4%"></span></div>
+        <div class="foot" style="margin-top:0"><span>TARGET 1.2–1.8</span><span>MANUAL · 2 D AGO</span></div>
+      </div>
+    </section>
+
+    <div class="mon-grid">
+      <section class="panel ticks" aria-labelledby="spec-h" style="padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><h2 id="spec-h" class="label" style="margin:0;font-size:12px;letter-spacing:4px;font-weight:500">SPECIMEN</h2><span class="dusk" style="font-size:10px;letter-spacing:2px">NO. 001</span></div>
+        <div class="serif" style="font-size:32px;line-height:1">Lactuca <span class="italic">sativa</span></div>
+        <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:12px">
+          <dt class="muted">VARIETY</dt><dd style="margin:0">Winter Kopfsalat</dd>
+          <dt class="muted">STAGE</dt><dd style="margin:0">Vegetative · head forming</dd>
+          <dt class="muted">PLANTS</dt><dd style="margin:0">3 of 3 healthy</dd>
+          <dt class="muted">HARVESTED</dt><dd style="margin:0">0 g · pending</dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="photo-h" style="border:1px dashed #2A3430;padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><h2 id="photo-h" class="label" style="margin:0;font-size:12px;letter-spacing:4px;font-weight:500">PHOTO TIMELINE · <span class="kanji">写</span></h2><span class="dusk" style="font-size:10px;letter-spacing:2px">MILESTONE 2</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+          <div style="aspect-ratio:1;border:1px solid var(--seam);display:flex;align-items:flex-end;padding:6px;font-size:9px;letter-spacing:1px;color:var(--muted)">SOL 21</div>
+          <div style="aspect-ratio:1;border:1px solid var(--seam);display:flex;align-items:flex-end;padding:6px;font-size:9px;letter-spacing:1px;color:var(--muted)">SOL 22</div>
+          <div style="aspect-ratio:1;border:1px solid var(--seam);display:flex;align-items:flex-end;padding:6px;font-size:9px;letter-spacing:1px;color:var(--muted)">SOL 23</div>
+        </div>
+        <p style="margin:0;font-size:11px;line-height:1.6;color:var(--muted)">A daily Pi camera photo will appear here, next to the readings.</p>
+      </section>
+
+      <section class="panel log-panel" aria-labelledby="mlog-h" style="padding:20px;display:flex;flex-direction:column;gap:16px">
+        <h2 id="mlog-h" class="label" style="margin:0;font-size:12px;letter-spacing:4px;font-weight:500">SHIP'S LOG · <span class="kanji">航海日誌</span></h2>
+        <div role="group" aria-label="Quick entry" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+          <button class="btn btn-ghost btn-sm btn-plain" type="button">pH / EC</button>
+          <button class="btn btn-ghost btn-sm btn-plain" type="button">TOP-UP</button>
+          <button class="btn btn-ghost btn-sm btn-plain" type="button">NOTE</button>
+        </div>
+        <ol class="log-list">
+          <li><span class="log-when"><span class="dusk">SOL 23</span><span class="muted">08:02</span></span><span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px">Water temperature held 18.5–20.8 °C overnight.</span><span class="label">AUTO · COLLECTOR</span></span></li>
+          <li><span class="log-when"><span class="dusk">SOL 22</span><span class="muted">19:40</span></span><span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px">Topped up 1.5 L. pH 6.1 · EC 1.4 mS/cm.</span><span class="label">JULZ</span></span></li>
+          <li><span class="log-when"><span class="dusk">SOL 22</span><span class="muted">07:55</span></span><span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px">Outer leaves starting to cup. Looks healthy.</span><span class="label">JULZ · NOTE</span></span></li>
+          <li><span class="log-when"><span class="dusk">SOL 20</span><span class="muted">03:12</span></span><span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px" class="dusk">▲ No reading for 11 min. Recovered, 11 buffered readings delivered.</span><span class="label">AUTO · ALERT</span></span></li>
+          <li><span class="log-when"><span class="dusk">SOL 19</span><span class="muted">20:10</span></span><span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px">Air stone cleaned, bubbles even again.</span><span class="label">JULZ</span></span></li>
+          <li><span class="log-when"><span class="dusk">SOL 16</span><span class="muted">18:30</span></span><span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px">Nutrient solution changed. 18 L fresh mix.</span><span class="label">JULZ</span></span></li>
+        </ol>
+        <a href="#monitoring" style="font-size:11px;letter-spacing:2px">FULL LOG →</a>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- =================================================================
+     05 · ALERTS  (#alerts)  — new, kept simple
+     ================================================================= -->
+<div class="page app" id="alerts" hidden>
+  <aside class="sidebar" data-active="alerts"></aside>
+  <main class="content">
+    <div class="topbar"><span>DECK / <b>ALERTS</b> <span class="kanji">警報</span></span><span>EARTH 2026-10-17 · 08:14 CET</span></div>
+
+    <header style="display:flex;flex-direction:column;gap:10px">
+      <h1 class="page-title">Alerts<span class="italic dusk">.</span></h1>
+      <p style="margin:0;font-size:14px;color:var(--lichen)">1 open. 3 resolved in the last 7 sols.</p>
+    </header>
+
+    <section aria-labelledby="open-h" style="display:flex;flex-direction:column;gap:14px">
+      <div class="section-head"><h2 id="open-h">OPEN · <span class="kanji">未解決</span></h2></div>
+      <article class="panel ticks warn alert-open">
+        <span class="kanji dusk" aria-hidden="true" style="font-size:40px;line-height:1">警</span>
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+          <span class="label dusk" style="letter-spacing:3px">▲ MOD-02 · LETTUCE LAB · B · SINCE 06:40</span>
+          <h3 class="serif" style="margin:0;font-size:30px;line-height:1.1">Water level <span class="italic dusk">low.</span></h3>
+          <p style="margin:0;font-size:12px;line-height:1.6;color:#C9B8AE">The float switch reports low water. Top up about 2 L, then check the air line is still bubbling.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary btn-sm" type="button" style="min-height:44px">MARK RESOLVED</button>
+          <a class="btn btn-warn btn-sm" href="#monitoring" style="min-height:44px">OPEN MODULE</a>
+        </div>
+      </article>
+    </section>
+
+    <section aria-labelledby="hist-h" style="display:flex;flex-direction:column;gap:14px">
+      <div class="section-head">
+        <h2 id="hist-h">RESOLVED · <span class="kanji">記録</span></h2>
+        <a href="#crew" style="font-size:11px;letter-spacing:2px">ALERT RULES →</a>
+      </div>
+      <div class="table-box">
+        <table style="min-width:640px">
+          <thead><tr><th>WHEN</th><th>MODULE</th><th>ALERT</th><th>DURATION</th><th>RESOLVED BY</th></tr></thead>
+          <tbody>
+            <tr><td><span class="dusk">SOL 20</span> <span class="muted">03:12</span></td><td>MOD-01</td><td>No reading for 11 min</td><td class="muted">11 min</td><td class="muted">AUTO · link restored</td></tr>
+            <tr><td><span class="dusk">SOL 18</span> <span class="muted">15:40</span></td><td>MOD-01</td><td>Water temperature 22.6 °C, above target</td><td class="muted">35 min</td><td class="muted">AUTO · back in range</td></tr>
+            <tr><td><span class="dusk">SOL 17</span> <span class="muted">09:05</span></td><td>MOD-02</td><td>Water level low</td><td class="muted">2 h 10 min</td><td class="muted">JULZ · topped up</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- =================================================================
+     06 · CREW RECORD (profile & settings)  (#crew)
+     ================================================================= -->
+<div class="page app" id="crew" hidden>
+  <aside class="sidebar" data-active="crew"></aside>
+  <main class="content" style="gap:28px">
+    <div class="topbar"><span>DECK / <b>CREW</b> <span class="kanji">乗員記録</span></span><span>CHANGES SAVE PER SECTION</span></div>
+    <header style="display:flex;flex-direction:column;gap:10px">
+      <h1 class="page-title">Crew <span class="italic green">record.</span></h1>
+      <p style="margin:0;font-size:14px;color:var(--lichen)">Your identity, units, alerts and devices.</p>
+    </header>
+
+    <section class="panel ticks" aria-labelledby="ident-h" style="padding:24px;display:flex;flex-wrap:wrap;gap:28px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <span style="width:112px;height:112px;border:1px solid var(--chlorophyll-line);background:var(--hull-2);color:var(--chlorophyll);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:40px">JD</span>
+        <button class="btn btn-ghost btn-sm btn-plain" type="button" style="min-height:40px">CHANGE</button>
+      </div>
+      <form style="flex:999 1 320px;min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px" onsubmit="event.preventDefault()">
+        <h2 id="ident-h" class="label" style="grid-column:1 / -1;margin:0;font-size:12px;letter-spacing:4px;font-weight:500">IDENTITY · <span class="kanji">身元</span></h2>
+        <div class="field"><label class="label" for="p-name">DISPLAY NAME</label><input class="input" id="p-name" value="julz"></div>
+        <div class="field"><label class="label" for="p-email">EMAIL</label><input class="input" id="p-email" type="email" value="you@example.com"></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span class="label">RANK</span><span style="font-size:14px">Mission Botanist</span><span style="font-size:11px;color:var(--muted)">Enlisted 16 Sep 2026</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span class="label">LIFETIME HARVEST · <span class="kanji">収穫</span></span><span class="serif" style="font-size:36px;line-height:1">0.0<span style="font-size:16px;color:var(--muted)"> kg</span></span><span style="font-size:11px;color:var(--muted)">First harvest expected ~8 Nov</span></div>
+        <div style="grid-column:1 / -1;display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" style="min-height:44px">SAVE</button></div>
+      </form>
+    </section>
+
+    <div class="grid-2">
+      <section class="panel" aria-labelledby="units-h" style="padding:24px;display:flex;flex-direction:column;gap:20px">
+        <h2 id="units-h" class="label" style="margin:0;font-size:12px;letter-spacing:4px;font-weight:500">UNITS &amp; LOCALE · <span class="kanji">単位</span></h2>
+        <div class="field"><span class="label">TEMPERATURE</span><div class="seg" role="group" aria-label="Temperature unit"><button type="button" aria-pressed="true">°C</button><button type="button" aria-pressed="false">°F</button></div></div>
+        <div class="field"><span class="label">CONDUCTIVITY</span><div class="seg" role="group" aria-label="Conductivity unit"><button type="button" aria-pressed="true">mS/cm</button><button type="button" aria-pressed="false">µS/cm</button><button type="button" aria-pressed="false">ppm 500</button></div></div>
+        <div class="field"><label class="label" for="p-tz">TIME ZONE</label><select class="input" id="p-tz" style="height:44px"><option>Europe/Berlin (CET)</option><option>UTC</option></select></div>
+      </section>
+
+      <section class="panel" aria-labelledby="al-h" style="padding:24px;display:flex;flex-direction:column;gap:16px">
+        <h2 id="al-h" class="label" style="margin:0;font-size:12px;letter-spacing:4px;font-weight:500">ALERTS · <span class="kanji">警報</span></h2>
+        <ul style="margin:0;padding:0;list-style:none">
+          <li style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--seam-soft)"><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:13px">Water level low</span><span style="font-size:11px;color:var(--muted)">Float switch reports low</span></span><button class="switch" type="button" role="switch" aria-checked="true" aria-label="Water level low"><span></span></button></li>
+          <li style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--seam-soft)"><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:13px">Water temperature out of range</span><span style="font-size:11px;color:var(--muted)">Outside each module's target</span></span><button class="switch" type="button" role="switch" aria-checked="true" aria-label="Water temperature out of range"><span></span></button></li>
+          <li style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--seam-soft)"><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:13px">Module silent</span><span style="font-size:11px;color:var(--muted)">No reading for 10 minutes</span></span><button class="switch" type="button" role="switch" aria-checked="true" aria-label="Module silent"><span></span></button></li>
+          <li style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0"><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:13px">Morning digest</span><span style="font-size:11px;color:var(--muted)">One summary at 08:00</span></span><button class="switch" type="button" role="switch" aria-checked="false" aria-label="Morning digest"><span></span></button></li>
+        </ul>
+        <div class="field"><span class="label">DELIVER VIA</span><div style="display:flex;flex-wrap:wrap;gap:6px"><span class="chip" aria-pressed="true" style="display:inline-flex;align-items:center;border-color:var(--chlorophyll);color:var(--chlorophyll);background:var(--hull-2)">✓ EMAIL</span><span class="chip" style="display:inline-flex;align-items:center;border-color:var(--chlorophyll);color:var(--chlorophyll);background:var(--hull-2)">✓ PUSH · NTFY</span></div></div>
+      </section>
+    </div>
+
+    <section class="panel" aria-labelledby="dev-h" style="padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div class="section-head"><h2 id="dev-h" class="label" style="font-size:12px;letter-spacing:4px">DEVICES &amp; API KEYS · <span class="kanji">鍵</span></h2><button class="btn btn-sm" type="button" style="min-height:40px">+ GENERATE DEVICE KEY</button></div>
+      <div style="overflow-x:auto"><table style="min-width:620px"><thead><tr><th style="padding-left:0">DEVICE</th><th>KEY</th><th>MODULES</th><th>LAST SEEN</th><th><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody><tr><td style="padding-left:0">pi-lettuce-lab</td><td class="muted">fo_dev_••••3f9a</td><td>MOD-01, MOD-02</td><td class="green">● 14 s ago</td><td style="text-align:right"><button class="btn btn-warn btn-sm btn-plain" type="button">REVOKE</button></td></tr></tbody></table></div>
+    </section>
+
+    <section class="panel ticks warn" aria-labelledby="wh-h" style="padding:24px;display:flex;flex-wrap:wrap;gap:28px;align-items:center;border-color:var(--dusk-line);background:#0E0B09">
+      <svg viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Wormhole link symbol" style="flex:none"><g fill="none" stroke="#E2794F" stroke-width="1"><ellipse cx="60" cy="60" rx="54" ry="18"></ellipse><ellipse cx="60" cy="60" rx="40" ry="13"></ellipse><ellipse cx="60" cy="60" rx="26" ry="8.5"></ellipse><ellipse cx="60" cy="60" rx="12" ry="4"></ellipse></g><circle cx="60" cy="60" r="2.5" fill="#7BEA9B"></circle><path d="M60 20 V40 M60 80 V100" stroke="#59645E" stroke-dasharray="2 3"></path></svg>
+      <div style="flex:999 1 320px;min-width:0;display:flex;flex-direction:column;gap:10px">
+        <span class="label dusk" style="letter-spacing:3px">WORMHOLE LINK · <span class="kanji">通信</span> · MILESTONE 5</span>
+        <h2 id="wh-h" class="serif" style="margin:0;font-size:34px;line-height:1.05">Connect to <span class="italic">The Farmian.</span></h2>
+        <p style="margin:0;font-size:13px;line-height:1.7;color:#C9B8AE;max-width:560px">Send your real readings and harvests through the wormhole. A stranded astronaut eats what you grow.</p>
+      </div>
+      <button class="btn btn-warn" type="button" disabled style="color:#A88F80">PAIRING NOT YET OPEN</button>
+    </section>
+
+    <div class="grid-2">
+      <section class="panel" aria-labelledby="sec-h" style="padding:24px;display:flex;flex-direction:column;gap:14px">
+        <h2 id="sec-h" class="label" style="margin:0;font-size:12px;letter-spacing:4px;font-weight:500">SECURITY · <span class="kanji">防護</span></h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px"><span>Password</span><button class="btn btn-ghost btn-sm btn-plain" type="button" style="min-height:40px">CHANGE</button></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px"><span>Active sessions <span class="muted">· 2</span></span><button class="btn btn-ghost btn-sm btn-plain" type="button" style="min-height:40px">REVIEW</button></div>
+        <a class="btn btn-ghost" href="#landing" style="margin-top:6px">SIGN OUT</a>
+      </section>
+      <section class="panel" aria-labelledby="data-h" style="padding:24px;display:flex;flex-direction:column;gap:14px">
+        <h2 id="data-h" class="label" style="margin:0;font-size:12px;letter-spacing:4px;font-weight:500">YOUR DATA · <span class="kanji">記録</span></h2>
+        <p style="margin:0;font-size:12px;line-height:1.6;color:var(--lichen)">Every reading and log entry is yours. Export it any time.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn btn-ghost btn-sm btn-plain" type="button" style="min-height:40px">EXPORT JSON</button><button class="btn btn-ghost btn-sm btn-plain" type="button" style="min-height:40px">EXPORT CSV</button></div>
+        <div style="margin-top:auto;border-top:1px solid #18211E;padding-top:14px;display:flex;justify-content:space-between;align-items:center;gap:12px"><span class="dusk" style="font-size:12px">Delete account and all data</span><button class="btn btn-warn btn-sm btn-plain" type="button" style="min-height:40px">DELETE</button></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Sidebar template (rendered into every .sidebar) -->
+<template id="sidebar-tpl">
+  <a class="brand" href="#landing"><span class="mark-box"><svg width="20" height="20" class="green" aria-hidden="true"><use href="#fo-mark"></use></svg></span><span class="wordmark" style="font-size:18px">FarmOrchestra</span></a>
+  <nav class="nav" aria-label="Command deck">
+    <a href="#overview" data-key="overview"><span class="kanji">概</span>OVERVIEW</a>
+    <a href="#alerts" data-key="alerts"><span class="kanji">警</span>ALERTS<span class="badge">1</span></a>
+    <a href="#overview" data-key="log"><span class="kanji">誌</span>SHIP'S LOG</a>
+    <a href="#crew" data-key="crew"><span class="kanji">乗</span>CREW</a>
+  </nav>
+  <nav class="nav mods" aria-label="Modules">
+    <span class="label" style="padding:0 10px 8px;letter-spacing:4px">MODULES · <span class="kanji">装置</span></span>
+    <a href="#monitoring" data-key="mod-01"><span class="green">●</span>Lettuce Lab · A</a>
+    <a href="#alerts" data-key="mod-02"><span class="dusk">▲</span>Lettuce Lab · B</a>
+    <a href="#overview" data-key="mod-03"><span class="muted">○</span>Sprout Jar · 01</a>
+  </nav>
+  <a class="sidebar-user" href="#crew"><span class="avatar">JD</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px">julz</span><span class="label">MISSION BOTANIST</span></span></a>
+</template>
+
+<!-- Prototype-only page switcher -->
+<nav class="proto-nav" aria-label="Prototype screens">
+  <a href="#landing">LANDING</a><a href="#login">LOGIN</a><a href="#overview">OVERVIEW</a><a href="#monitoring">MONITOR</a><a href="#alerts">ALERTS</a><a href="#crew">CREW</a>
+</nav>
+
+<script>
+/* ---------- Router: show the section matching location.hash ---------- */
+const pages = [...document.querySelectorAll('.page')];
+function route() {
+  const id = (location.hash || '#landing').slice(1);
+  const target = pages.find(p => p.id === id) || pages[0];
+  pages.forEach(p => { p.hidden = p !== target; });
+  document.querySelectorAll('.proto-nav a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + target.id));
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', route);
+
+/* ---------- Sidebar: one template, active item per page ---------- */
+const tpl = document.getElementById('sidebar-tpl');
+document.querySelectorAll('.sidebar').forEach(sb => {
+  sb.appendChild(tpl.content.cloneNode(true));
+  const active = sb.dataset.active;
+  sb.querySelectorAll('[data-key]').forEach(a => { if (a.dataset.key === active) a.setAttribute('aria-current', 'page'); });
+});
+
+/* ---------- Sol bars: data-sol="total,done" ---------- */
+document.querySelectorAll('[data-sol]').forEach(el => {
+  const [total, done] = el.dataset.sol.split(',').map(Number);
+  for (let i = 0; i < total; i++) {
+    const s = document.createElement('span');
+    if (i < done) s.className = i === done - 1 ? 'today' : 'on';
+    el.appendChild(s);
+  }
+});
+
+/* ---------- Water temperature sparkline (sample data) ---------- */
+const temp = h => 19.65 + 1.1 * Math.sin(2 * Math.PI * (h - 1) / 24) + 0.08 * Math.sin(h * 7.3);
+document.querySelectorAll('[data-spark]').forEach(pl => {
+  const pts = [];
+  for (let i = 0; i <= 40; i++) pts.push(i * 5 + ',' + ((21.2 - temp(i * 0.6)) / 3 * 36).toFixed(1));
+  pl.setAttribute('points', pts.join(' '));
+});
+
+/* ---------- "Last reading Ns ago" counter ---------- */
+let ago = 14;
+setInterval(() => { ago = (ago + 1) % 60; document.querySelectorAll('[data-ago]').forEach(e => e.textContent = ago); }, 1000);
+
+/* ---------- Login tabs ---------- */
+document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', String(b === btn)));
+  document.querySelectorAll('[data-form]').forEach(f => { f.hidden = f.dataset.form !== btn.dataset.tab; });
+}));
+
+/* ---------- Overview filters ---------- */
+document.querySelectorAll('[data-filter] [data-f]').forEach(btn => btn.addEventListener('click', () => {
+  btn.parentElement.querySelectorAll('[data-f]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+  document.querySelectorAll('.mod').forEach(m => { m.hidden = !(btn.dataset.f === 'all' || m.dataset.kind === btn.dataset.f); });
+}));
+
+/* ---------- Segmented controls & switches (Crew) ---------- */
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+}));
+document.querySelectorAll('.switch').forEach(s => s.addEventListener('click', () => {
+  s.setAttribute('aria-checked', String(s.getAttribute('aria-checked') !== 'true'));
+}));
+
+/* ---------- Topographic background: contour lines from a smooth field (marching squares) ---------- */
+function topo(el, seed) {
+  const W = 1440, H = 900, step = 18, cols = Math.ceil(W / step) + 1, rows = Math.ceil(H / step) + 1;
+  const f = (x, y) => {
+    const u = x / 260 + seed, v = y / 260 - seed;
+    return Math.sin(u * 1.1 + Math.sin(v * 0.8) * 1.6) + Math.sin(v * 1.3 + Math.sin(u * 0.7) * 1.4) + 0.5 * Math.sin((u + v) * 1.9);
+  };
+  const g = [];
+  for (let j = 0; j < rows; j++) { g[j] = []; for (let i = 0; i < cols; i++) g[j][i] = f(i * step, j * step); }
+  let d = '';
+  const lerp = (a, b, t) => a + (b - a) * t;
+  for (let level = -2.2; level <= 2.2; level += 0.28) {
+    for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) {
+      const a = g[j][i], b = g[j][i + 1], c = g[j + 1][i + 1], e = g[j + 1][i];
+      const x = i * step, y = j * step, pts = [];
+      if ((a < level) !== (b < level)) pts.push([lerp(x, x + step, (level - a) / (b - a)), y]);
+      if ((b < level) !== (c < level)) pts.push([x + step, lerp(y, y + step, (level - b) / (c - b))]);
+      if ((e < level) !== (c < level)) pts.push([lerp(x, x + step, (level - e) / (c - e)), y + step]);
+      if ((a < level) !== (e < level)) pts.push([x, lerp(y, y + step, (level - a) / (e - a))]);
+      for (let k = 0; k + 1 < pts.length; k += 2) d += `M${pts[k][0].toFixed(1)} ${pts[k][1].toFixed(1)}L${pts[k + 1][0].toFixed(1)} ${pts[k + 1][1].toFixed(1)}`;
+    }
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="${d}" fill="none" stroke="#262B29" stroke-width="1.1"/></svg>`;
+}
+document.querySelectorAll('[data-topo]').forEach(el => topo(el, Number(el.dataset.topo) * 1.7));
+
+route();
+</script>
+</body>
+</html>
