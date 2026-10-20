@@ -15,7 +15,7 @@ java {
 }
 
 application {
-    mainClass = "com.farmorchestra.api.ApiApplication"
+    mainClass = "com.farmorchestra.api.FarmOrchestraApplication"
 }
 
 repositories {
