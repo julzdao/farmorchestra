@@ -1,0 +1,13 @@
+server:
+  port: ${SERVER_PORT:8181}
+  address: ${SERVER_ADDRESS:127.0.0.1}
+spring:
+  application:
+    name: farmorchestra-api
+  datasource:
+    url: jdbc:h2:file:./data/farmorchestra;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password: ""
+farm:
+  device-api-key: ${DEVICE_API_KEY:}
+  dashboard-origins: ${DASHBOARD_ORIGINS:http://localhost:5173,http://localhost:4173}
