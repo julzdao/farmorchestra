@@ -1,0 +1,71 @@
+
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+
+  "permissions": [
+    // Read project files, but never secrets.
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": "*.env*", "effect": "deny" },
+    { "action": "read", "resource": "*.env.example", "effect": "allow" },
+    { "action": "read", "resource": "*.pem", "effect": "deny" },
+    { "action": "read", "resource": "*.key", "effect": "deny" },
+
+    // Allow normal source-code implementation.
+    { "action": "edit", "resource": "*", "effect": "ask" },
+    { "action": "edit", "resource": "*.java", "effect": "allow" },
+    { "action": "edit", "resource": "*.ts", "effect": "allow" },
+    { "action": "edit", "resource": "*.tsx", "effect": "allow" },
+    { "action": "edit", "resource": "*.py", "effect": "allow" },
+    { "action": "edit", "resource": "*.scss", "effect": "allow" },
+    { "action": "edit", "resource": "*.css", "effect": "allow" },
+    { "action": "edit", "resource": "*.sql", "effect": "allow" },
+    { "action": "edit", "resource": "*.kts", "effect": "allow" },
+
+    // Documentation is reviewed, not silently rewritten.
+    { "action": "edit", "resource": "*.md", "effect": "ask" },
+    { "action": "edit", "resource": "*.mdx", "effect": "ask" },
+    { "action": "edit", "resource": "*.env", "effect": "deny" },
+    { "action": "edit", "resource": "*.env.*", "effect": "deny" },
+    { "action": "edit", "resource": "*.envrc", "effect": "deny" },
+    { "action": "edit", "resource": "*.env.example", "effect": "ask" },
+    { "action": "edit", "resource": "*.pem", "effect": "deny" },
+    { "action": "edit", "resource": "*.key", "effect": "deny" },
+
+    // Never edit generated or vendored output.
+    { "action": "edit", "resource": "*node_modules*", "effect": "deny" },
+    { "action": "edit", "resource": "*.venv*", "effect": "deny" },
+    { "action": "edit", "resource": "*build/*", "effect": "deny" },
+    { "action": "edit", "resource": "*dist/*", "effect": "deny" },
+    { "action": "edit", "resource": "*.gradle/*", "effect": "deny" },
+    { "action": "edit", "resource": "*apps/api/data/*", "effect": "deny" },
+
+    // Ask before leaving the repository.
+    { "action": "external_directory", "resource": "*", "effect": "ask" },
+
+    // Require approval for shell operations.
+    { "action": "shell", "resource": "*", "effect": "ask" },
+    { "action": "shell", "resource": "git status *", "effect": "allow" },
+    { "action": "shell", "resource": "git diff *", "effect": "allow" },
+    { "action": "shell", "resource": "git log *", "effect": "allow" },
+
+    // Project verification commands.
+    { "action": "shell", "resource": "./gradlew test*", "effect": "allow" },
+    { "action": "shell", "resource": "./gradlew build*", "effect": "allow" },
+    { "action": "shell", "resource": "npm test*", "effect": "allow" },
+    { "action": "shell", "resource": "npm run lint*", "effect": "allow" },
+    { "action": "shell", "resource": "npm run build*", "effect": "allow" },
+    { "action": "shell", "resource": "uv run pytest*", "effect": "allow" },
+    { "action": "shell", "resource": "uv run ruff*", "effect": "allow" },
+
+    // Git publishing always requires your approval.
+    { "action": "shell", "resource": "git push *", "effect": "ask" },
+    { "action": "shell", "resource": "git merge *", "effect": "ask" },
+
+    // Hard stops for actions the project forbids.
+    { "action": "shell", "resource": "git push --force *", "effect": "deny" },
+    { "action": "shell", "resource": "git push -f *", "effect": "deny" },
+    { "action": "shell", "resource": "git reset --hard *", "effect": "deny" },
+    { "action": "shell", "resource": "sudo *", "effect": "deny" }
+  ]
+}
